@@ -16,6 +16,31 @@ fetch('http://localhost:3000/api/tasks')
     });
 });
 
+// Envía información de la tarea al servidor
+const sendTaskToServer = async (taskData) => {
+    try {
+        const response = await fetch('http://localhost:3000/api/tasks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(taskData)
+        });
+
+        // Verifica si la respuesta es exitosa (código de estado 2xx)
+        if (!response.ok) {
+            throw new Error(`Error en la solicitud: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data;
+
+    } catch (error) {
+        console.error('Error al enviar la tarea al servidor:', error);
+        throw error; 
+    }
+};
+
 // Abrir modal de nueva tarea
 addTaskBtn.addEventListener('click', () => {
     editingTask = false;
@@ -89,19 +114,6 @@ function updateTask(taskCard, taskData) {
     if (targetColumn) {
         targetColumn.appendChild(taskCard);
     }
-}
-
-// Abrir modal para editar tarea
-function openTaskModalForEditing(taskCard, taskData) {
-
-    taskModal.classList.add('is-active');
-    document.querySelector('.modal-card-title').textContent = 'Editar Tarea';
-    document.getElementById('task-title').value = taskData.title;
-    document.getElementById('task-description').value = taskData.description;
-    document.getElementById('task-assigned').value = taskData.assignedTo;
-    document.getElementById('task-priority').value = taskData.priority;
-    document.getElementById('task-status').value = taskData.status;
-    document.getElementById('task-due-date').value = taskData.endDate;
 }
 
 // Modo Oscuro
@@ -188,8 +200,9 @@ document.querySelectorAll('.box').forEach(box => {
 });
 
 //funcion para crear una nueva tarea
-function createTask(taskData) {
-    const taskCard = generateTaskCard(taskData);
+async function createTask(taskData) {
+    const newCard = await sendTaskToServer(taskData)
+    const taskCard = generateTaskCard(newCard);
 
     const targetColumn = getTargetColumn(taskData.status);
     if (targetColumn) {
@@ -226,6 +239,11 @@ function getTargetColumn(status) {
 
 // funcion para abrir el modal de edicion de tarea
 function openTaskModalForEditing(taskCard, taskData) {
+    const [day , month , year] = taskData.endDate.split("/");
+
+    const date = `${year}-${month}-${day}`; // Formato de fecha: YYYY-MM-DD
+    const dueDate = date;
+
     editingTask = taskCard;
 
     taskModal.classList.add('is-active');
@@ -235,5 +253,5 @@ function openTaskModalForEditing(taskCard, taskData) {
     document.getElementById('task-assigned').value = taskData.assignedTo;
     document.getElementById('task-priority').value = taskData.priority;
     document.getElementById('task-status').value = taskData.status;
-    document.getElementById('task-due-date').value = taskData.endDate;
+    document.getElementById('task-due-date').value = dueDate;
 }
