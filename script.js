@@ -155,7 +155,7 @@ let currentDragItem = null;
 function generateTaskCard(taskData) {
     const taskCard = document.createElement('div');
     taskCard.className = 'task';
-    taskCard.id = `task-${Date.now()}`;  // id único para cada tarea
+    taskCard.id = `task-${Date.now()}`;  // Id único para cada tarea
     taskCard.draggable = true;  // Hace que la tarea sea draggable
     taskCard.innerHTML = `
         <div class="task-title">${taskData.title}</div>
@@ -189,7 +189,7 @@ function generateTaskCard(taskData) {
     return taskCard;
 }
 
-// permitir que los elementos se puedan soltar en los contenedores
+// Permitir que los elementos se puedan soltar en los contenedores
 document.querySelectorAll('.box').forEach(box => {
     box.addEventListener('dragover', (ev) => ev.preventDefault());
     box.addEventListener('drop', () => {
@@ -199,7 +199,7 @@ document.querySelectorAll('.box').forEach(box => {
     });
 });
 
-//funcion para crear una nueva tarea
+//Funcion para crear una nueva tarea
 async function createTask(taskData) {
     const newCard = await sendTaskToServer(taskData)
     const taskCard = generateTaskCard(newCard);
@@ -210,7 +210,7 @@ async function createTask(taskData) {
     }
 }
 
-// funcion para actualizar una tarea
+// Funcion para actualizar una tarea
 function updateTask(taskCard, taskData) {
     taskCard.querySelector('.task-title').textContent = taskData.title;
     taskCard.querySelector('.task-description').textContent = taskData.description;
