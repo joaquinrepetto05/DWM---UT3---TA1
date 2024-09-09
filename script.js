@@ -8,38 +8,19 @@ const darkMode = document.getElementById('modo-oscuro');
 let editingTask = null;
 let mode = "Light";
 
-fetch('http://localhost:3000/api/tasks')
-.then(response => response.json())
-.then(data => {
-    data.forEach(taskData => {
-        createTask(taskData);
-    });
-});
-
-// Envía información de la tarea al servidor
-const sendTaskToServer = async (taskData) => {
+// Cargar tareas iniciales
+const loadTasks = async () => {
     try {
-        const response = await fetch('http://localhost:3000/api/tasks', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(taskData)
-        });
-
-        // Verifica si la respuesta es exitosa (código de estado 2xx)
-        if (!response.ok) {
-            throw new Error(`Error en la solicitud: ${response.statusText}`);
-        }
-
+        const response = await fetch('http://localhost:3000/api/tasks');
         const data = await response.json();
-        return data;
-
+        data.forEach(task => {
+            createTask(task);
+        });
     } catch (error) {
-        console.error('Error al enviar la tarea al servidor:', error);
-        throw error; 
+        console.error('Error al cargar tareas:', error);
     }
 };
+loadTasks();
 
 // Abrir modal de nueva tarea
 addTaskBtn.addEventListener('click', () => {
@@ -62,7 +43,7 @@ closeModalBtns.forEach(btn => {
 });
 
 // Guardar tarea
-saveTaskBtn.addEventListener('click', () => {
+saveTaskBtn.addEventListener('click', async () => {
     const taskData = {
         title: document.getElementById('task-title').value,
         description: document.getElementById('task-description').value,
@@ -71,67 +52,99 @@ saveTaskBtn.addEventListener('click', () => {
         status: document.getElementById('task-status').value,
         endDate: document.getElementById('task-due-date').value
     };
+
     if (editingTask) {
-        updateTask(editingTask, taskData);
+        await updateTaskOnServer(editingTask, taskData);
     } else {
-        createTask(taskData);
+        await createTaskOnServer(taskData);
     }
     taskModal.classList.remove('is-active');
 });
 
-// Agregamos un event listener para el botón de modo oscuro
+// Enviar datos al servidor para crear una nueva tarea
+async function createTaskOnServer(taskData) {
+    try {
+        const response = await fetch('http://localhost:3000/api/tasks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(taskData)
+        });
+
+        const createdTask = await response.json();
+        createTask(createdTask); // Refleja la nueva tarea en la UI
+    } catch (error) {
+        console.error('Error al crear la tarea:', error);
+    }
+}
+
+// Actualización de la tarea en el servidor y UI
+async function updateTaskOnServer(taskCard, taskData) {
+    const taskId = taskCard.id.split('-')[1];
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(taskData)
+        });
+
+        const updatedTask = await response.json();
+        updateTask(taskCard, updatedTask); // Refleja los cambios en la UI
+    } catch (error) {
+        console.error('Error al actualizar la tarea:', error);
+    }
+}
+
+// Enviar solicitud para eliminar una tarea
+async function deleteTaskOnServer(taskCard) {
+    const taskId = taskCard.id.split('-')[1];
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/tasks/${taskId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            taskCard.remove(); // Elimina la tarea del DOM si el servidor la elimina con éxito
+        } else {
+            console.error('Error al eliminar la tarea.');
+        }
+    } catch (error) {
+        console.error('Error al eliminar la tarea:', error);
+    }
+}
+
+// Agregar event listener para el botón de modo oscuro
 document.getElementById("modo-oscuro").addEventListener("click", function () {
-    // Alterna entre las clases 'light-mode' y 'dark-mode' (por defecto sin la clase es modo oscuro)
     document.body.classList.toggle("light-mode");
 
     if (document.body.classList.contains("light-mode")) {
-        this.classList.add("light-mode");  // Cambia la imagen del botón para modo claro
+        this.classList.add("light-mode"); // Cambia la imagen del botón para modo claro
     } else {
-        this.classList.remove("light-mode");  // Cambia la imagen del botón para modo oscuro
+        this.classList.remove("light-mode"); // Cambia la imagen del botón para modo oscuro
     }
 });
-
-// Editar tarea existente
-function updateTask(taskCard, taskData) {
-    taskCard.querySelector('.task-title').textContent = taskData.title;
-    taskCard.querySelector('.task-assigned').textContent = `Asignado a: ${taskData.assignedTo}`;
-    taskCard.querySelector('.task-priority').textContent = `Prioridad: ${taskData.priority}`;
-    taskCard.querySelector('.task-due-date').textContent = `Fecha límite: ${taskData.endDate}`;
-
-    // Obtener todas las columnas
-    const columns = document.querySelectorAll('.column');
-
-    // Buscar la columna que contiene el subtítulo correspondiente al estado de la tarea
-    let targetColumn = null;
-    columns.forEach(column => {
-        const subtitle = column.querySelector('.subtitle');
-        if (subtitle && subtitle.textContent.trim() === taskData.status) {
-            targetColumn = column.querySelector('.box');
-        }
-    });
-
-    // Mover la tarjeta de la tarea a la columna encontrada
-    if (targetColumn) {
-        targetColumn.appendChild(taskCard);
-    }
-}
 
 // Modo Oscuro
 function changeMode(btnOrigin) {
     if (mode === "Light") {
-
         document.documentElement.style.setProperty("--background-color", "#121212");
         document.documentElement.style.setProperty("--font-color", "white");
         document.documentElement.style.setProperty("--primary-color", "rgb(52, 154, 52)");
         document.documentElement.style.setProperty("--light-background", "#1e1e1e");
         document.documentElement.style.setProperty("--very-light-background", "#333333");
         document.documentElement.style.setProperty("--create-task-button", "#99e9f2");
-        document.documentElement.style.setProperty("--create-task-", "#7bbcc4");
+        document.documentElement.style.setProperty("--create-task-hover", "#7bbcc4");
 
         mode = "Dark";
-    }
-    else {
-
+    } else {
         document.documentElement.style.setProperty("--background-color", "#e8e8e8");
         document.documentElement.style.setProperty("--font-color", "black");
         document.documentElement.style.setProperty("--primary-color", "rgb(52, 52, 154)");
@@ -152,11 +165,12 @@ changeMode(darkMode);
 
 let currentDragItem = null;
 
+// Función para generar una tarjeta de tarea (task card)
 function generateTaskCard(taskData) {
     const taskCard = document.createElement('div');
     taskCard.className = 'task';
-    taskCard.id = `task-${Date.now()}`;  // Id único para cada tarea
-    taskCard.draggable = true;  // Hace que la tarea sea draggable
+    taskCard.id = `task-${taskData.id}`;
+
     taskCard.innerHTML = `
         <div class="task-title">${taskData.title}</div>
         <p class="task-description">Descripción: ${taskData.description}</p>
@@ -166,24 +180,15 @@ function generateTaskCard(taskData) {
         <button class="deleteButton"></button>
     `;
 
-    // Añadir evento de clic para abrir el modal de edición de la tarea
+    // Evento de clic para abrir el modal de edición
     taskCard.addEventListener('click', function () {
         openTaskModalForEditing(taskCard, taskData);
     });
 
-    // Añadir eventos de drag and drop
-    taskCard.addEventListener('dragstart', () => {
-        currentDragItem = taskCard;
-    });
-
-    taskCard.addEventListener('dragend', () => {
-        currentDragItem = null;
-    });
-
-    // Añadir evento de clic para eliminar la tarea
-    taskCard.querySelector('.deleteButton').addEventListener('click', function (event) {
+    // Evento de clic para eliminar la tarea
+    taskCard.querySelector('.deleteButton').addEventListener('click', async function (event) {
         event.stopPropagation(); // Prevenir que se dispare el evento de editar tarea
-        taskCard.remove(); // Eliminar la tarjeta de tarea del DOM
+        await deleteTaskOnServer(taskCard); // Llama a la función de eliminación
     });
 
     return taskCard;
@@ -199,34 +204,16 @@ document.querySelectorAll('.box').forEach(box => {
     });
 });
 
-//Funcion para crear una nueva tarea
-async function createTask(taskData) {
-    const newCard = await sendTaskToServer(taskData)
-    const taskCard = generateTaskCard(newCard);
-
+// Función para crear una nueva tarea en la UI
+function createTask(taskData) {
+    const taskCard = generateTaskCard(taskData);
     const targetColumn = getTargetColumn(taskData.status);
     if (targetColumn) {
         targetColumn.appendChild(taskCard);
     }
 }
 
-// Funcion para actualizar una tarea
-function updateTask(taskCard, taskData) {
-    taskCard.querySelector('.task-title').textContent = taskData.title;
-    taskCard.querySelector('.task-description').textContent = taskData.description;
-    taskCard.querySelector('.task-assigned').textContent = `Asignado a: ${taskData.assignedTo}`;
-    taskCard.querySelector('.task-priority').textContent = `Prioridad: ${taskData.priority}`;
-    taskCard.querySelector('.task-due-date').textContent = `Fecha límite: ${taskData.endDate}`;
-
-    const currentColumn = taskCard.parentNode;
-    const targetColumn = getTargetColumn(taskData.status);
-
-    if (currentColumn !== targetColumn && targetColumn) {
-        targetColumn.appendChild(taskCard);
-    }
-}
-
-// funcion para obtener la columna objetivo
+// Función para obtener la columna objetivo
 function getTargetColumn(status) {
     const columns = document.querySelectorAll('.column .box');
     for (let box of columns) {
@@ -235,23 +222,4 @@ function getTargetColumn(status) {
         }
     }
     return null;
-}
-
-// funcion para abrir el modal de edicion de tarea
-function openTaskModalForEditing(taskCard, taskData) {
-    const [day , month , year] = taskData.endDate.split("/");
-
-    const date = `${year}-${month}-${day}`; // Formato de fecha: YYYY-MM-DD
-    const dueDate = date;
-
-    editingTask = taskCard;
-
-    taskModal.classList.add('is-active');
-    document.querySelector('.modal-card-title').textContent = 'Editar Tarea';
-    document.getElementById('task-title').value = taskData.title;
-    document.getElementById('task-description').value = taskData.description;
-    document.getElementById('task-assigned').value = taskData.assignedTo;
-    document.getElementById('task-priority').value = taskData.priority;
-    document.getElementById('task-status').value = taskData.status;
-    document.getElementById('task-due-date').value = dueDate;
 }
